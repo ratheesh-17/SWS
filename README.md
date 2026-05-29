@@ -1,55 +1,112 @@
-# Document Management Dashboard Backend
+# Document Management Dashboard
 
-A FastAPI backend scaffold for a Document Management Dashboard focusing on PDF upload, notification persistence, and upload batch processing.
+A full-stack web application for uploading, tracking, and managing PDF documents with real-time notifications.
 
-## Project structure
+## Tech Stack
 
-- `backend/app/main.py` - FastAPI application entrypoint
-- `backend/app/api/router.py` - API routes for documents and notifications
-- `backend/app/core/config.py` - application configuration and database connection settings
-- `backend/app/db/session.py` - SQLAlchemy engine and session management
-- `backend/app/models/` - domain entities: `Document`, `UploadBatch`, `Notification`
-- `backend/app/repositories/` - repository layer for data access
-- `backend/app/services/` - business logic and upload/notification coordination
-- `backend/app/utils/storage.py` - disk storage helpers for file persistence
+| Layer    | Technology                          |
+|----------|-------------------------------------|
+| Frontend | React (Create React App), plain CSS |
+| Backend  | FastAPI (Python)                    |
+| Database | MySQL                               |
+| Realtime | Server-Sent Events (SSE)            |
+| Storage  | Local disk (`backend/app/storage/`) |
 
-## Database design
+## Project Structure
 
-- `documents` table stores uploaded PDF metadata, path, type, size, status, and optional bulk batch reference.
-- `upload_batches` table supports bulk upload tracking with total file count, success/failure counts, and batch status.
-- `notifications` table stores persisted system alerts including type, timestamp, and read status.
+```
+DM/
+├── backend/
+│   └── app/
+│       ├── api/router.py          # All API endpoints
+│       ├── core/config.py         # Settings & DB URL
+│       ├── core/events.py         # SSE pub/sub bus
+│       ├── db/                    # SQLAlchemy engine & session
+│       ├── models/                # Document, UploadBatch, Notification
+│       ├── repositories/          # Data access layer
+│       ├── schemas/               # Pydantic response schemas
+│       ├── services/              # Business logic
+│       └── utils/storage.py       # File save helpers
+└── frontend/
+    └── src/
+        ├── api.js                 # All fetch/XHR/SSE calls
+        ├── App.js                 # Root component & state
+        └── components/
+            ├── Header.jsx         # Nav + notification bell
+            ├── UploadZone.jsx     # Drag-drop upload + progress bars
+            ├── DocumentTable.jsx  # Document list + download
+            ├── NotificationPanel.jsx  # Notification dropdown
+            └── Toast.jsx          # SSE toast alerts
+```
 
 ## Setup
 
-1. Create a Python virtual environment.
-   ```powershell
-   python -m venv .venv
-   .\.venv\Scripts\Activate.ps1
-   ```
+### 1. Database
 
-2. Install dependencies.
-   ```powershell
-   pip install -r backend\requirements.txt
-   ```
+Create a MySQL database:
+```sql
+CREATE DATABASE dm_dashboard;
+```
 
-3. Create a MySQL database named `dm_dashboard` and update `backend\.env.example` values if needed.
+### 2. Backend
 
-4. Run the application.
-   ```powershell
-   uvicorn backend.app.main:app --reload
-   ```
+```powershell
+cd backend
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+```
 
-## Endpoints
+Copy and configure environment (defaults work for local MySQL):
+```powershell
+copy .env.example .env
+```
 
-- `GET /health`
-- `POST /api/documents/upload` - upload one or multiple PDFs
-- `GET /api/documents` - list uploaded documents
-- `GET /api/notifications` - list system notifications
-- `POST /api/notifications/mark-read/{notification_id}` - mark a notification as read
-- `POST /api/notifications/mark-all-read` - mark all notifications as read
+Run the backend:
+```powershell
+cd ..
+uvicorn backend.app.main:app --reload
+```
 
-## Notes
+Backend runs at `http://localhost:8000`. Tables are auto-created on startup.
 
-- The backend is designed as a clean FastAPI domain with models, repositories, and services.
-- Bulk uploads over 3 files create a batch and generate a notification once processing completes.
-- Notifications persist in the database and can be fetched by the frontend.
+### 3. Frontend
+
+```powershell
+cd frontend
+npm install
+npm start
+```
+
+Frontend runs at `http://localhost:3000`.
+
+## API Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET`  | `/health` | Health check |
+| `POST` | `/api/documents/upload` | Upload one or more PDFs |
+| `GET`  | `/api/documents` | List all documents |
+| `GET`  | `/api/documents/{id}/download` | Download a document |
+| `GET`  | `/api/notifications` | List all notifications |
+| `GET`  | `/api/notifications/unread-count` | Get unread count |
+| `GET`  | `/api/notifications/stream` | SSE stream for real-time events |
+| `POST` | `/api/notifications/mark-read/{id}` | Mark one notification read |
+| `POST` | `/api/notifications/mark-all-read` | Mark all notifications read |
+
+## Features
+
+- **Individual & bulk PDF upload** with drag-and-drop or file picker
+- **Per-file progress bars** with filename, size, type, and status
+- **Bulk mode** (>3 files): shows background processing banner; individual bars still visible in collapsible state
+- **Real-time SSE notification** pushed to frontend when bulk batch completes — works even if user navigated away from upload page
+- **Notification Center**: persistent bell icon with unread badge, dropdown panel, mark individual/all as read
+- **Document table**: searchable list with name, size, type, upload date, status chip, and download link
+
+## Assumptions
+
+- Only PDF files are accepted (validated on both frontend and backend)
+- Max file size: 50 MB per file
+- No authentication required (single-user prototype)
+- Files are stored on local disk under `backend/app/storage/`
+- SSE is in-process only — does not survive backend restarts (suitable for single-instance deployment)
