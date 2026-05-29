@@ -34,10 +34,12 @@ def upload_documents(
 
     if batch:
         success = sum(1 for d in processed if d.status.value == "completed")
+        from datetime import datetime
         notification_bus.publish({
             "type": "batch_complete",
             "message": f"{success} of {len(processed)} files uploaded successfully",
             "batch_id": batch.id,
+            "timestamp": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC"),
         })
 
     return processed
