@@ -4,13 +4,22 @@ A full-stack web application for uploading, tracking, and managing PDF documents
 
 ## Tech Stack
 
-| Layer    | Technology                          |
-|----------|-------------------------------------|
-| Frontend | React (Create React App), plain CSS |
-| Backend  | FastAPI (Python)                    |
-| Database | MySQL                               |
-| Realtime | Server-Sent Events (SSE)            |
-| Storage  | Local disk (`backend/app/storage/`) |
+| Layer     | Technology                          |
+|-----------|-------------------------------------|
+| Frontend  | React 19, plain CSS                 |
+| Backend   | FastAPI (Python)                    |
+| Database  | MySQL + SQLAlchemy                  |
+| Realtime  | Server-Sent Events (SSE)            |
+| Storage   | Local disk (`backend/app/storage/`) |
+
+## Features
+
+- **Drag-and-drop or file picker** upload for single or multiple PDFs
+- **Per-file progress bars** showing filename, size, type, and status (pending / uploading / complete / failed)
+- **Bulk mode** (>3 files): shows a background-processing banner; individual bars remain visible in a collapsible state
+- **Real-time SSE notification** pushed to the frontend when a bulk batch finishes — received even if the user navigated away
+- **Notification Center**: persistent bell icon with unread badge, dropdown panel, mark individual or all as read
+- **Document table**: searchable list with name, size, upload date, status chip, and download link
 
 ## Project Structure
 
@@ -29,21 +38,26 @@ DM/
 │       └── utils/storage.py       # File save helpers
 └── frontend/
     └── src/
-        ├── api.js                 # All fetch/XHR/SSE calls
+        ├── api.js                 # All fetch / SSE calls
         ├── App.js                 # Root component & state
         └── components/
             ├── Header.jsx         # Nav + notification bell
             ├── UploadZone.jsx     # Drag-drop upload + progress bars
             ├── DocumentTable.jsx  # Document list + download
-            ├── NotificationPanel.jsx  # Notification dropdown
+            ├── NotificationPanel.jsx
             └── Toast.jsx          # SSE toast alerts
 ```
 
 ## Setup
 
+### Prerequisites
+
+- Python 3.9+
+- Node.js 18+
+- MySQL 8+
+
 ### 1. Database
 
-Create a MySQL database:
 ```sql
 CREATE DATABASE dm_dashboard;
 ```
@@ -55,20 +69,26 @@ cd backend
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
-```
-
-Copy and configure environment (defaults work for local MySQL):
-```powershell
 copy .env.example .env
 ```
 
-Run the backend:
+Edit `.env` with your MySQL credentials:
+
+```env
+MYSQL_USER=root
+MYSQL_PASSWORD=your_password
+MYSQL_HOST=localhost
+MYSQL_PORT=3306
+MYSQL_DB=dm_dashboard
+```
+
+Start the server (from the project root):
+
 ```powershell
-cd ..
 uvicorn backend.app.main:app --reload
 ```
 
-Backend runs at `http://localhost:8000`. Tables are auto-created on startup.
+Backend runs at `http://localhost:8000`. Database tables are auto-created on first startup.
 
 ### 3. Frontend
 
@@ -80,7 +100,7 @@ npm start
 
 Frontend runs at `http://localhost:3000`.
 
-## API Endpoints
+## API Reference
 
 | Method | Path | Description |
 |--------|------|-------------|
@@ -91,22 +111,12 @@ Frontend runs at `http://localhost:3000`.
 | `GET`  | `/api/notifications` | List all notifications |
 | `GET`  | `/api/notifications/unread-count` | Get unread count |
 | `GET`  | `/api/notifications/stream` | SSE stream for real-time events |
-| `POST` | `/api/notifications/mark-read/{id}` | Mark one notification read |
-| `POST` | `/api/notifications/mark-all-read` | Mark all notifications read |
+| `POST` | `/api/notifications/mark-read/{id}` | Mark one notification as read |
+| `POST` | `/api/notifications/mark-all-read` | Mark all notifications as read |
 
-## Features
+## Constraints
 
-- **Individual & bulk PDF upload** with drag-and-drop or file picker
-- **Per-file progress bars** with filename, size, type, and status
-- **Bulk mode** (>3 files): shows background processing banner; individual bars still visible in collapsible state
-- **Real-time SSE notification** pushed to frontend when bulk batch completes — works even if user navigated away from upload page
-- **Notification Center**: persistent bell icon with unread badge, dropdown panel, mark individual/all as read
-- **Document table**: searchable list with name, size, type, upload date, status chip, and download link
-
-## Assumptions
-
-- Only PDF files are accepted (validated on both frontend and backend)
+- PDF files only (validated on both frontend and backend)
 - Max file size: 50 MB per file
-- No authentication required (single-user prototype)
-- Files are stored on local disk under `backend/app/storage/`
-- SSE is in-process only — does not survive backend restarts (suitable for single-instance deployment)
+- No authentication (single-user prototype)
+- SSE is in-process — does not survive backend restarts
