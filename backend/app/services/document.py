@@ -71,18 +71,28 @@ class DocumentService:
         return documents, batch
 
     def save_documents(self, documents: list[Document], files: list[UploadFile], batch: UploadBatch | None = None) -> list[Document]:
+        success, failure = 0, 0
+        file_map = {}
+        for f in files:
+            file_map.setdefault(f.filename, f)
+
         for document in documents:
-            source_file = next(file for file in files if file.filename == document.original_filename)
-            path = Path(document.storage_path)
-            save_upload_file(source_file, path)
-            self.document_repo.update_status(document, DocumentStatus.completed)
+            source_file = file_map.get(document.original_filename)
+            try:
+                path = Path(document.storage_path)
+                save_upload_file(source_file, path)
+                self.document_repo.update_status(document, DocumentStatus.completed)
+                success += 1
+            except Exception:
+                self.document_repo.update_status(document, DocumentStatus.failed)
+                failure += 1
 
         if batch:
-            self.batch_repo.complete(batch, success_count=len(documents), failure_count=0)
+            self.batch_repo.complete(batch, success_count=success, failure_count=failure)
             self.notification_repo.create(
                 Notification(
-                    message=f"{len(documents)} files uploaded successfully",
-                    type=NotificationType.success,
+                    message=f"{success} of {success + failure} files uploaded successfully",
+                    type=NotificationType.success if failure == 0 else NotificationType.error,
                     created_at=datetime.utcnow(),
                     read=False,
                     meta=f"batch_id={batch.id}",

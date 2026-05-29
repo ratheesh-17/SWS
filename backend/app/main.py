@@ -32,4 +32,4 @@ app.include_router(api_router, prefix="/api")
 
 @app.get("/health")
 def health_check():
-    return {"status": "ok", "database_url": settings.SQLALCHEMY_DATABASE_URL}
+    return {"status": "ok"}

@@ -15,6 +15,9 @@ class NotificationRepository:
     def get_all(self) -> list[Notification]:
         return self.db.query(Notification).order_by(Notification.created_at.desc()).all()
 
+    def get_by_id(self, notification_id: str) -> Notification | None:
+        return self.db.query(Notification).filter(Notification.id == notification_id).first()
+
     def get_unread_count(self) -> int:
         return self.db.query(Notification).filter(Notification.read.is_(False)).count()
 

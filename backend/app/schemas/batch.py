@@ -21,5 +21,4 @@ class UploadBatchBase(BaseModel):
 class UploadBatchRead(UploadBatchBase):
     id: str
 
-    class Config:
-        orm_mode = True
+    model_config = {"from_attributes": True}

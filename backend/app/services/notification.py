@@ -16,13 +16,17 @@ class NotificationService:
         return self.notification_repo.get_unread_count()
 
     def mark_read(self, notification_id: str) -> Notification | None:
-        notification = self.db.query(Notification).filter(Notification.id == notification_id).first()
+        notification = self.notification_repo.get_by_id(notification_id)
         if not notification:
             return None
-        return self.notification_repo.mark_as_read(notification)
+        updated = self.notification_repo.mark_as_read(notification)
+        self.db.commit()
+        return updated
 
     def mark_all_read(self) -> int:
-        return self.notification_repo.mark_all_read()
+        count = self.notification_repo.mark_all_read()
+        self.db.commit()
+        return count
 
     def create_alert(self, message: str, type: NotificationType = NotificationType.info, meta: str | None = None) -> Notification:
         notification = Notification(message=message, type=type, meta=meta)
