@@ -18,7 +18,6 @@ class DocumentBase(BaseModel):
     content_type: str
     size_bytes: int
     status: DocumentStatus
-    storage_path: str
     uploaded_at: datetime
     batch_id: Optional[str] = None
 

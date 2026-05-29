@@ -31,36 +31,46 @@ export async function markAllNotificationsRead() {
 }
 
 export function uploadFiles(files, onProgress) {
-  return new Promise((resolve, reject) => {
-    const formData = new FormData();
-    files.forEach((f) => formData.append('files', f));
+  // Each file gets its own XHR so progress is truly per-file
+  const progresses = new Array(files.length).fill(0);
 
-    const xhr = new XMLHttpRequest();
-    xhr.open('POST', `${BASE}/documents/upload`);
+  const requests = files.map((file, idx) =>
+    new Promise((resolve, reject) => {
+      const formData = new FormData();
+      formData.append('files', file);
 
-    xhr.upload.onprogress = (e) => {
-      if (e.lengthComputable) {
-        const pct = Math.round((e.loaded / e.total) * 100);
-        onProgress(pct);
-      }
-    };
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `${BASE}/documents/upload`);
 
-    xhr.onload = () => {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        resolve(JSON.parse(xhr.responseText));
-      } else {
-        try {
-          const err = JSON.parse(xhr.responseText);
-          reject(new Error(err.detail || 'Upload failed'));
-        } catch {
-          reject(new Error('Upload failed'));
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+          progresses[idx] = Math.round((e.loaded / e.total) * 100);
+          onProgress(idx, progresses[idx]);
         }
-      }
-    };
+      };
 
-    xhr.onerror = () => reject(new Error('Network error'));
-    xhr.send(formData);
-  });
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          progresses[idx] = 100;
+          onProgress(idx, 100);
+          resolve(JSON.parse(xhr.responseText));
+        } else {
+          try {
+            const err = JSON.parse(xhr.responseText);
+            reject(new Error(err.detail || 'Upload failed'));
+          } catch {
+            reject(new Error('Upload failed'));
+          }
+        }
+      };
+
+      xhr.onerror = () => reject(new Error('Network error'));
+      xhr.send(formData);
+    })
+  );
+
+  // Each request returns a 1-element array; flatten all results
+  return Promise.all(requests).then((results) => results.flat());
 }
 
 export function getDownloadUrl(documentId) {

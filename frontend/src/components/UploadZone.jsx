@@ -42,32 +42,43 @@ export default function UploadZone({ onUploadComplete }) {
 
   async function handleUpload() {
     if (!fileItems.length) return;
-    const isBulk = fileItems.length > 3;
+    const pendingItems = fileItems.filter((i) => i.status === STATUS.PENDING);
+    if (!pendingItems.length) return;
+    const isBulk = pendingItems.length > 3;
 
     if (isBulk) {
-      setBulkBanner(`Upload in progress — processing ${fileItems.length} files in background.`);
+      setBulkBanner(`Upload in progress — processing ${pendingItems.length} files in background.`);
       setCollapsed(true);
     }
 
-    // Mark all uploading
-    setFileItems((prev) => prev.map((item) => ({ ...item, status: STATUS.UPLOADING, progress: 0 })));
+    // Mark pending files as uploading
+    setFileItems((prev) =>
+      prev.map((item) =>
+        item.status === STATUS.PENDING ? { ...item, status: STATUS.UPLOADING, progress: 0 } : item
+      )
+    );
+
+    const pendingIndices = fileItems
+      .map((item, idx) => (item.status === STATUS.PENDING ? idx : -1))
+      .filter((i) => i !== -1);
 
     try {
-      const files = fileItems.map((i) => i.file);
-      const result = await uploadFiles(files, (pct) => {
+      const files = pendingItems.map((i) => i.file);
+      const result = await uploadFiles(files, (fileIdx, pct) => {
+        const globalIdx = pendingIndices[fileIdx];
         setFileItems((prev) =>
-          prev.map((item) =>
-            item.status === STATUS.UPLOADING ? { ...item, progress: pct } : item
+          prev.map((item, i) =>
+            i === globalIdx ? { ...item, progress: pct } : item
           )
         );
       });
 
-      // Map results back by original_filename
       const resultMap = {};
       result.forEach((doc) => { resultMap[doc.original_filename] = doc; });
 
       setFileItems((prev) =>
-        prev.map((item) => {
+        prev.map((item, i) => {
+          if (!pendingIndices.includes(i)) return item;
           const doc = resultMap[item.file.name];
           return doc
             ? { ...item, status: doc.status === 'completed' ? STATUS.DONE : STATUS.FAILED, progress: 100 }
@@ -79,7 +90,9 @@ export default function UploadZone({ onUploadComplete }) {
       onUploadComplete();
     } catch (err) {
       setFileItems((prev) =>
-        prev.map((item) => ({ ...item, status: STATUS.FAILED, error: err.message }))
+        prev.map((item, i) =>
+          pendingIndices.includes(i) ? { ...item, status: STATUS.FAILED, error: err.message } : item
+        )
       );
       if (isBulk) setBulkBanner(null);
     }

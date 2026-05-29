@@ -8,7 +8,9 @@ function formatBytes(bytes) {
 }
 
 function formatDate(ts) {
-  return new Date(ts).toLocaleString();
+  // Backend returns naive UTC — append Z so browsers parse it as UTC
+  const utc = ts.endsWith('Z') ? ts : ts + 'Z';
+  return new Date(utc).toLocaleString();
 }
 
 const STATUS_COLORS = {
