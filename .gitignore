@@ -8,3 +8,6 @@ venv/
 ENV/
 .DS_Store
 backend/app/storage/
+frontend/node_modules/
+frontend/build/
+frontend/.env.local
